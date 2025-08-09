@@ -424,7 +424,7 @@ def get_gmail_service():
                     return None
         else:
             # Interactive auth only works locally
-            if not credentials_json:
+            if not credentials_json and os.path.exists('credentials.json'):
                 flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
                 creds = flow.run_local_server(port=0)
                 with open('token.json', 'w') as token:
