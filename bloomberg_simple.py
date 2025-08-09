@@ -158,6 +158,7 @@ def send_telegram_message(text, chat_id=None, reply_to_message_id=None):
         payload = {
             'chat_id': target_chat_id,
             'text': text,
+            'parse_mode': 'Markdown'
         }
         
         if reply_to_message_id:
@@ -368,7 +369,7 @@ def send_to_telegram(headline, date):
         formatted_time = format_bloomberg_time(date)
         
         # Format pesan yang lebih simple dan clean
-        message = f"🔔 **Kojin Bloomberg Alert**\n\n{headline}\n\n{formatted_time}"
+        message = f"🔔 *Kojin Bloomberg Alert*\n\n{headline}\n\n{formatted_time}"
         
         # Broadcast ke semua subscribers
         return broadcast_to_subscribers(message)
