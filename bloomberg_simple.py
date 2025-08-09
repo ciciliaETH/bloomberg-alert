@@ -239,14 +239,14 @@ def handle_telegram_command(message):
     # Auto-add user sebagai subscriber saat kirim command
     is_new_subscriber = add_subscriber(chat_id)
     if is_new_subscriber:
-        welcome_msg = f"👋 Welcome {username}!\n\nAnda telah di-subscribe untuk Bloomberg alerts."
+        welcome_msg = f"👋 Welcome {username}!\n\nYou have been subscribed to Kojin Bloomberg alerts."
         send_telegram_message(welcome_msg, chat_id)
     
     if text == '/start':
         if not monitoring_active:
             monitoring_active = True
             save_monitoring_status(True)
-            response = f"🚀 Bloomberg Monitor Activated!\n\n" \
+            response = f"🚀 Kojin Bloomberg Monitor Activated!\n\n" \
                       f"✅ Monitoring started by @{username}\n" \
                       f"📧 Checking emails every 30 seconds\n" \
                       f"🔔 Headlines will be sent to all subscribers automatically\n" \
@@ -257,7 +257,7 @@ def handle_telegram_command(message):
                       f"• /subscribers - Show subscriber count"
         else:
             response = f"ℹ️ Already Active\n\n" \
-                      f"✅ Bloomberg monitoring is already running\n" \
+                      f"✅ Kojin Bloomberg monitoring is already running\n" \
                       f"👥 Current subscribers: {len(subscribers)}\n" \
                       f"💡 Use /unsubscribe to stop your personal alerts"
     elif text == '/status':
@@ -268,37 +268,37 @@ def handle_telegram_command(message):
                 last_headline = last_data[1]
                 # Format waktu sesuai Bloomberg
                 formatted_last_check = format_bloomberg_time(last_data[0])
-                response = f"📊 Bloomberg Monitor Status\n\n" \
+                response = f"📊 Kojin Bloomberg Monitor Status\n\n" \
                           f"🟢 Status: Active\n" \
                           f"� Subscribers: {len(subscribers)}\n" \
                           f"�📧 Checking emails every 30 seconds\n" \
                           f"📰 Last News: {last_headline}\n" \
                           f"⏰ Last check: {formatted_last_check}"
             else:
-                response = f"📊 Bloomberg Monitor Status\n\n" \
+                response = f"📊 Kojin Bloomberg Monitor Status\n\n" \
                           f"🟢 Status: Active\n" \
                           f"� Subscribers: {len(subscribers)}\n" \
                           f"�📧 Checking emails every 30 seconds\n" \
                           f"📰 No emails processed yet"
         else:
-            response = f"📊 Bloomberg Monitor Status\n\n" \
+            response = f"📊 Kojin Bloomberg Monitor Status\n\n" \
                       f"🔴 Status: Stopped\n" \
                       f"👥 Subscribers: {len(subscribers)}\n" \
                       f"Use /start to activate monitoring"
     
     elif text == '/unsubscribe':
         if remove_subscriber(chat_id):
-            response = f"👋 @{username} telah unsubscribe\n\n" \
-                      f"❌ Anda tidak akan menerima Bloomberg alerts lagi\n" \
-                      f"📝 Kirim /start untuk subscribe kembali"
+            response = f"👋 @{username} have unsubscribed\n\n" \
+                      f"❌ You will not receive Bloomberg alerts again\n" \
+                      f"📝 Send /start to re-subscribe"
         else:
-            response = f"ℹ️ Anda belum subscribe\n\nKirim /start untuk mulai menerima alerts"
+            response = f"ℹ️ You not subscribed yet\n\nSend /start to start receiving alerts"
     
     elif text == '/subscribers':
         response = f"👥 Subscriber Info\n\n" \
                   f"📊 Total subscribers: {len(subscribers)}\n" \
                   f"🤖 Bot: @cicilianews_bot\n" \
-                  f"📧 Auto-subscribe saat kirim command"
+                  f"📧 Auto-subscribe when sending commands"
     
     elif text == '/test':
         # Format waktu current dalam format Bloomberg
@@ -313,8 +313,8 @@ def handle_telegram_command(message):
                   f"🤖 Bot: @cicilianews_bot"
     
     elif text == '/help':
-        response = f"🤖 *Bloomberg Alert Bot*\n\n" \
-                  f"📧 Monitors Bloomberg emails and sends headlines\n\n" \
+        response = f"🤖 *Kojin Bloomberg Alert Bot*\n\n" \
+                  f"📧 Kojin Monitors Bloomberg emails and sends headlines\n\n" \
                   f"*Commands:*\n" \
                   f"• `/start` - Start monitoring\n" \
                   f"• `/status` - Check current status\n" \
@@ -424,7 +424,7 @@ def get_gmail_service():
                     return None
         else:
             # Interactive auth only works locally
-            if not credentials_json:
+            if not credentials_json and os.path.exists('credentials.json'):
                 flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
                 creds = flow.run_local_server(port=0)
                 with open('token.json', 'w') as token:
@@ -562,7 +562,7 @@ def main():
     """Fungsi utama bot"""
     global monitoring_active
     
-    print("🤖 Bloomberg Alert Bot Starting...")
+    print("🤖 Kojin Bloomberg Alert Bot Starting...")
     print("="*50)
     
     # Clear webhook untuk menghindari konflik
@@ -578,7 +578,7 @@ def main():
         send_telegram_message("🔄 *Bot Restarted*\n\nMonitoring resumed automatically")
     else:
         print("⏸️ Monitoring is inactive, waiting for /start command...")
-        send_telegram_message("🤖 *Bloomberg Bot Ready*\n\nSend `/start` to begin monitoring Bloomberg emails")
+        send_telegram_message("🤖 *Kojin Bloomberg Bot Ready*\n\nSend `/start` to begin monitoring Bloomberg emails")
     
     # Start Telegram bot listener in separate thread
     telegram_thread = threading.Thread(target=telegram_bot_listener, daemon=True)
