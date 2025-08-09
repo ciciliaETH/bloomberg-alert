@@ -271,15 +271,15 @@ def handle_telegram_command(message):
                 formatted_last_check = format_bloomberg_time(last_data[0])
                 response = f"📊 Kojin Bloomberg Monitor Status\n\n" \
                           f"🟢 Status: Active\n" \
-                          f"� Subscribers: {len(subscribers)}\n" \
-                          f"�📧 Checking emails every 30 seconds\n" \
+                          f"Subscribers: {len(subscribers)}\n" \
+                          f"📧 Checking emails every 30 seconds\n" \
                           f"📰 Last News: {last_headline}\n" \
                           f"⏰ Last check: {formatted_last_check}"
             else:
                 response = f"📊 Kojin Bloomberg Monitor Status\n\n" \
                           f"🟢 Status: Active\n" \
-                          f"� Subscribers: {len(subscribers)}\n" \
-                          f"�📧 Checking emails every 30 seconds\n" \
+                          f"Subscribers: {len(subscribers)}\n" \
+                          f"📧 Checking emails every 30 seconds\n" \
                           f"📰 No emails processed yet"
         else:
             response = f"📊 Kojin Bloomberg Monitor Status\n\n" \
