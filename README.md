@@ -1,87 +1,74 @@
-# Bloomberg Alert Bot - Railway Deployment
+# Bloomberg Alert Bot
 
-## 🚀 Quick Deploy to Railway
+Telegram bot yang memantau email Bloomberg dan mengirim notifikasi otomatis dengan AI analysis.
 
-### 1. Prerequisites
-- GitHub account
-- Railway account (https://railway.app)
-- Google Gmail API credentials
+## ✨ Features
+- 📧 **Auto Email Monitoring** - Monitor Bloomberg emails setiap 30 detik
+- 🤖 **AI Analysis** - Analisis 2 paragraf otomatis dari headline
+- � **Multi-subscriber** - Support multiple users
+- 📱 **Commands** - Control via Telegram commands
+
+## �🚀 Quick Setup
+
+### 1. Setup Telegram Bot
+```bash
+python telegram_setup.py
+```
+
+### 2. Setup OpenAI (Opsional)
+Edit `telegram_config.py` dan tambahkan OpenAI API key:
+```python
+OPENAI_API_KEY = "sk-your-openai-key"
+```
+
+### 3. Jalankan Bot
+```bash
+python bloomberg_simple.py
+```
+
+## 📋 Requirements
+- Python 3.7+
+- Gmail API credentials
 - Telegram bot token
 
-### 2. Setup Steps
+## 🔧 Commands
+- `/start` - Mulai monitoring
+- `/status` - Cek status
+- `/unsubscribe` - Stop notifikasi
+- `/help` - Bantuan
 
-#### Step 1: Push to GitHub
-```bash
-git init
-git add .
-git commit -m "Initial Bloomberg bot commit"
-git branch -M main
-git remote add origin https://github.com/yourusername/bloomberg-bot.git
-git push -u origin main
-```
-
-#### Step 2: Deploy to Railway
-1. Go to https://railway.app
-2. Click "Start a New Project"
-3. Choose "Deploy from GitHub repo"
-4. Select your repository
-5. Railway will auto-detect Python and start building
-
-#### Step 3: Set Environment Variables
-In Railway dashboard, go to Variables tab and add:
-
-```
-TELEGRAM_TOKEN=8122220616:AAFI8xFd2O0X1UiJWBWvO8j5-pgeysLCbpc
-TELEGRAM_CHAT_ID=YOUR_CHAT_ID
-GOOGLE_CREDENTIALS_JSON={"token": "...", "refresh_token": "...", "token_uri": "...", "client_id": "...", "client_secret": "...", "scopes": ["..."]}
-```
-
-#### Step 4: Get Google Credentials JSON
-1. Run locally: `python bloomberg_simple.py`
-2. Complete OAuth flow
-3. Copy content of `token.json`
-4. Minify JSON (remove spaces/newlines)
-5. Add to Railway as `GOOGLE_CREDENTIALS_JSON`
-
-### 3. Files Structure
+## 📁 File Structure
 ```
 bloomberg/
-├── bloomberg_simple.py    # Main bot code
-├── telegram_config.py     # Local config (gitignored)
-├── requirements.txt       # Python dependencies
-├── Procfile              # Railway process definition
-├── railway.json          # Railway configuration
-├── .gitignore           # Git ignore rules
-└── README.md            # This file
+├── bloomberg_simple.py    # Main application
+├── telegram_setup.py      # Setup helper
+├── telegram_config.py     # Config file (auto-generated)
+├── requirements.txt       # Dependencies
+└── README.md             # Documentation
 ```
 
-### 4. Bot Commands
-- `/start` - Start monitoring
-- `/status` - Check status
-- `/test` - Test connection
-- `/unsubscribe` - Stop personal alerts
-- `/subscribers` - Show subscriber count
-- `/help` - Show help
+## 🚀 Deployment
+- Heroku
+- Render 
+- VPS/Server manual
 
-### 5. Features
-- ✅ Multi-user support with auto-subscribe
-- ✅ Persistent subscriber storage
-- ✅ Email monitoring every 30 seconds
-- ✅ Auto-restart on crash
-- ✅ Production-ready with environment variables
+## 🔒 Environment Variables
+```
+TELEGRAM_TOKEN=your_bot_token
+TELEGRAM_CHAT_ID=your_chat_id
+GOOGLE_CREDENTIALS_JSON=your_credentials_json
+OPENAI_API_KEY=your_openai_key  # Opsional untuk AI analysis
+```
 
-### 6. Monitoring
-- Check Railway logs for errors
-- Bot auto-restarts on failure
-- Use `/status` command to verify operation
+## 📰 Message Format
+```
+🔔 Bloomberg Alert
 
-### 7. Cost Estimate
-- Railway Free: 500 execution hours/month
-- Expected usage: ~720 hours/month for 24/7
-- Upgrade to Pro ($5/month) for unlimited hours
+📰 Fed's Goolsbee Says He Wants to See CPI Before Making Rate Call
 
-## 🔧 Local Development
-```bash
-pip install -r requirements.txt
-python bloomberg_simple.py
+🤖 AI Analysis:
+[Paragraf 1: Isi utama berita...]
+[Paragraf 2: Konteks dan dampak...]
+
+⏰ 09/06/25 14:32:00 UTC+7:00
 ```

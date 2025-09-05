@@ -11,25 +11,49 @@ from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
 
+# Try to import AI libraries (optional)
+try:
+    import google.generativeai as genai
+    GEMINI_AVAILABLE = True
+except ImportError:
+    GEMINI_AVAILABLE = False
+    print("⚠️ Google Generative AI not installed, AI analysis will be disabled")
+
 # Import konfigurasi Telegram
 try:
     # Try environment variables first (for production)
     import os
     TELEGRAM_TOKEN = os.getenv('TELEGRAM_TOKEN')
     TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '')
+    GEMINI_API_KEY = os.getenv('GEMINI_API_KEY')
     
     if not TELEGRAM_TOKEN:
         # Fallback to local config file
         from telegram_config import TELEGRAM_TOKEN, TELEGRAM_CHAT_ID
+        try:
+            from telegram_config import GEMINI_API_KEY
+        except ImportError:
+            GEMINI_API_KEY = None
         
     print(f"✅ Loaded config - Token: {TELEGRAM_TOKEN[:10]}..., Chat ID: {TELEGRAM_CHAT_ID}")
 except ImportError:
     # Fallback jika file config tidak ada
     TELEGRAM_TOKEN = 'YOUR_BOT_TOKEN'
     TELEGRAM_CHAT_ID = 'YOUR_CHAT_ID'
+    GEMINI_API_KEY = 'YOUR_GEMINI_KEY'
     print("❌ File telegram_config.py tidak ditemukan!")
     print("🔧 Jalankan: python telegram_setup.py untuk setup bot")
     exit(1)
+
+# Setup Gemini AI
+if GEMINI_AVAILABLE and GEMINI_API_KEY and GEMINI_API_KEY != 'YOUR_GEMINI_KEY':
+    try:
+        genai.configure(api_key=GEMINI_API_KEY)
+        print("🤖 Gemini AI Analysis enabled (FREE)")
+    except Exception as e:
+        print(f"⚠️ Gemini setup error: {e}")
+else:
+    print("⚠️ Gemini not available, AI analysis disabled")
 
 # SCOPES yang diperlukan untuk mengakses Gmail
 SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
@@ -118,7 +142,7 @@ def get_telegram_updates(offset=0):
         params = {
             'offset': offset,
             'timeout': 10,
-            'allowed_updates': ['message']  # Hanya terima message updates
+            'allowed_updates': ['message']  
         }
         response = requests.get(url, params=params, timeout=15)
         
@@ -154,10 +178,16 @@ def send_telegram_message(text, chat_id=None, reply_to_message_id=None):
         # Gunakan chat_id yang diberikan, atau default TELEGRAM_CHAT_ID
         target_chat_id = chat_id if chat_id else TELEGRAM_CHAT_ID
         
+        # Skip jika chat_id kosong
+        if not target_chat_id:
+            print("⚠️ Chat ID empty, skipping message")
+            return False
+        
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         payload = {
             'chat_id': target_chat_id,
             'text': text,
+            'parse_mode': 'Markdown'
         }
         
         if reply_to_message_id:
@@ -169,10 +199,46 @@ def send_telegram_message(text, chat_id=None, reply_to_message_id=None):
             return True
         else:
             print(f"❌ Error sending message to {target_chat_id}: {response.status_code}")
+            print(f"Response: {response.text}")
             return False
             
     except Exception as e:
         print(f"❌ Error sending message: {e}")
+        return False
+
+def send_telegram_message_with_keyboard(text, chat_id=None, keyboard=None):
+    """Mengirim pesan ke Telegram dengan inline keyboard"""
+    try:
+        # Gunakan chat_id yang diberikan, atau default TELEGRAM_CHAT_ID
+        target_chat_id = chat_id if chat_id else TELEGRAM_CHAT_ID
+        
+        # Skip jika chat_id kosong
+        if not target_chat_id:
+            print("⚠️ Chat ID empty, skipping message")
+            return False
+        
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+        payload = {
+            'chat_id': target_chat_id,
+            'text': text,
+            'parse_mode': 'Markdown'
+        }
+        
+        if keyboard:
+            import json
+            payload['reply_markup'] = json.dumps(keyboard)
+        
+        response = requests.post(url, data=payload, timeout=10)
+        
+        if response.status_code == 200:
+            return True
+        else:
+            print(f"❌ Error sending message with keyboard to {target_chat_id}: {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
+            
+    except Exception as e:
+        print(f"❌ Error sending message with keyboard: {e}")
         return False
 
 def broadcast_to_subscribers(text):
@@ -192,6 +258,43 @@ def broadcast_to_subscribers(text):
             # Optionally remove failed chat_ids (user might have blocked bot)
     
     print(f"📤 Broadcast sent: {success_count} success, {failed_count} failed")
+    return success_count > 0
+
+def broadcast_to_subscribers_with_ai(text, headline, ai_analysis):
+    """Broadcast pesan ke semua subscribers dengan inline keyboard untuk AI analysis"""
+    if not subscribers:
+        print("❌ No subscribers to broadcast to")
+        return False
+    
+    success_count = 0
+    failed_count = 0
+    
+    # Create inline keyboard untuk show AI analysis
+    keyboard = {
+        "inline_keyboard": [[
+            {
+                "text": "📖 Show AI Analysis", 
+                "callback_data": f"show_ai:{len(headline)}"  # Use headline length as unique ID
+            }
+        ]]
+    }
+    
+    # Store AI analysis temporarily (simple in-memory storage)
+    if not hasattr(broadcast_to_subscribers_with_ai, 'ai_cache'):
+        broadcast_to_subscribers_with_ai.ai_cache = {}
+    
+    broadcast_to_subscribers_with_ai.ai_cache[str(len(headline))] = {
+        'headline': headline,
+        'analysis': ai_analysis or "AI analysis not available"
+    }
+    
+    for chat_id in subscribers.copy():
+        if send_telegram_message_with_keyboard(text, chat_id, keyboard):
+            success_count += 1
+        else:
+            failed_count += 1
+    
+    print(f"📤 Broadcast with AI button sent: {success_count} success, {failed_count} failed")
     return success_count > 0
 
 def auto_detect_chat_id():
@@ -247,7 +350,7 @@ def handle_telegram_command(message):
             monitoring_active = True
             save_monitoring_status(True)
             response = f"🚀 Kojin Bloomberg Monitor Activated!\n\n" \
-                      f"✅ Monitoring started by @{username}\n" \
+                      f"✅ Monitoring started by {username}\n" \
                       f"📧 Checking emails every 30 seconds\n" \
                       f"🔔 Headlines will be sent to all subscribers automatically\n" \
                       f"👥 Current subscribers: {len(subscribers)}\n\n" \
@@ -288,7 +391,7 @@ def handle_telegram_command(message):
     
     elif text == '/unsubscribe':
         if remove_subscriber(chat_id):
-            response = f"👋 @{username} have unsubscribed\n\n" \
+            response = f"👋 {username} have unsubscribed\n\n" \
                       f"❌ You will not receive Bloomberg alerts again\n" \
                       f"📝 Send /start to re-subscribe"
         else:
@@ -307,7 +410,7 @@ def handle_telegram_command(message):
         
         response = f"🧪 Test Connection\n\n" \
                   f"✅ Bot is working correctly!\n" \
-                  f"👤 User: @{username}\n" \
+                  f"👤 User: {username}\n" \
                   f"🕐 Time: {current_bloomberg_time}\n" \
                   f"💬 Your Chat ID: {chat_id}\n" \
                   f"🤖 Bot: @cicilianews_bot"
@@ -329,6 +432,87 @@ def handle_telegram_command(message):
                   f"Use `/help` to see available commands"
     
     return send_telegram_message(response, chat_id=chat_id, reply_to_message_id=message_id)
+
+def handle_callback_query(callback_query):
+    """Handle callback query dari inline keyboard button"""
+    try:
+        query_id = callback_query['id']
+        chat_id = str(callback_query['from']['id'])
+        data = callback_query.get('data', '')
+        
+        # Answer callback query to remove loading state
+        answer_callback_query(query_id)
+        
+        if data.startswith('show_ai:'):
+            # Extract headline ID from callback data
+            headline_id = data.split(':')[1]
+            
+            # Get AI analysis from cache
+            if hasattr(broadcast_to_subscribers_with_ai, 'ai_cache'):
+                ai_data = broadcast_to_subscribers_with_ai.ai_cache.get(headline_id)
+                
+                if ai_data:
+                    headline = ai_data['headline']
+                    analysis = ai_data['analysis']
+                    
+                    # Send AI analysis as new message
+                    ai_message = f"*🤖 AI Analysis:*\n\n{analysis}"
+                    send_telegram_message(ai_message, chat_id)
+                    print(f"📖 Sent AI analysis to {chat_id}")
+                else:
+                    send_telegram_message("❌ AI analysis not found or expired", chat_id)
+            else:
+                send_telegram_message("❌ AI analysis not available", chat_id)
+                
+    except Exception as e:
+        print(f"❌ Error handling callback query: {e}")
+
+def answer_callback_query(query_id, text=""):
+    """Answer callback query to remove loading state"""
+    try:
+        url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/answerCallbackQuery"
+        payload = {
+            'callback_query_id': query_id,
+            'text': text
+        }
+        response = requests.post(url, data=payload, timeout=5)
+        return response.status_code == 200
+    except Exception as e:
+        print(f"❌ Error answering callback query: {e}")
+        return False
+
+def generate_ai_analysis(headline):
+    """Generate AI analysis dari headline Bloomberg menggunakan Gemini"""
+    if not GEMINI_AVAILABLE:
+        return None
+    
+    try:
+        # Configure Gemini API
+        if GEMINI_API_KEY and GEMINI_API_KEY != 'YOUR_GEMINI_KEY':
+            genai.configure(api_key=GEMINI_API_KEY)
+            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            prompt = f"""Tolong bikin penjelasan berita dengan gaya Bloomberg/Reuters, panjang 2 paragraf. Gunakan headline berikut: {headline}
+
+Paragraf pertama: jelaskan isi utama berita (siapa, apa, kapan, data/indikator utama kalau ada).
+Paragraf kedua: jelaskan konteks, dampak, atau implikasi dari berita tersebut (misalnya ke pasar, kebijakan, atau tren yang lebih luas). 
+
+Gunakan bahasa formal, padat, tapi tetap enak dibaca. Tulis dalam bahasa Indonesia."""
+
+            system_prompt = "Kamu adalah jurnalis ekonomi/finansial yang ahli menulis analisis berita Bloomberg/Reuters dengan gaya profesional."
+            full_prompt = f"{system_prompt}\n\n{prompt}"
+            
+            response = model.generate_content(full_prompt)
+            analysis = response.text.strip()
+            
+            return analysis
+        else:
+            print("❌ Gemini API key not configured")
+            return None
+            
+    except Exception as e:
+        print(f"❌ Error generating AI analysis: {e}")
+        return None
 
 def format_bloomberg_time(email_date_str):
     """Convert email date string to Bloomberg format like: 08/09/25 14:32:00 UTC+7:00"""
@@ -362,16 +546,21 @@ def format_bloomberg_time(email_date_str):
         return now_utc7.strftime("%m/%d/%y %H:%M:%S UTC+7:00")
 
 def send_to_telegram(headline, date):
-    """Broadcast headline Bloomberg ke semua subscribers"""
+    """Broadcast headline Bloomberg ke semua subscribers dengan AI analysis"""
     try:
         # Format waktu sesuai dengan email Bloomberg
         formatted_time = format_bloomberg_time(date)
         
-        # Format pesan yang lebih simple dan clean
-        message = f"🔔 Bloomberg Alert\n\n{headline}\n\n{formatted_time}"
+        # Generate AI analysis
+        ai_analysis = generate_ai_analysis(headline)
         
-        # Broadcast ke semua subscribers
-        return broadcast_to_subscribers(message)
+        # Format pesan utama (tanpa AI analysis)
+        message = f"*🔔 Bloomberg Alert*\n\n" \
+                 f"{headline}\n\n" \
+                 f"{formatted_time}"
+        
+        # Broadcast ke semua subscribers dengan inline keyboard
+        return broadcast_to_subscribers_with_ai(message, headline, ai_analysis)
     except Exception as e:
         print(f"❌ Error mengirim ke Telegram: {e}")
         return False
@@ -396,7 +585,6 @@ def get_gmail_service():
     credentials_json = os.getenv('GOOGLE_CREDENTIALS_JSON')
     if credentials_json:
         import json
-        from google.oauth2.credentials import Credentials
         
         # Parse JSON credentials from environment
         try:
@@ -454,6 +642,7 @@ def telegram_bot_listener():
     
     print("🤖 Telegram bot listener started...")
     processed_messages = set()  # Track processed message IDs
+    processed_callbacks = set()  # Track processed callback query IDs
     
     while True:
         try:
@@ -463,6 +652,7 @@ def telegram_bot_listener():
                 for update in updates.get('result', []):
                     last_update_offset = update['update_id'] + 1
                     
+                    # Handle regular messages (commands)
                     if 'message' in update:
                         message = update['message']
                         message_id = message.get('message_id')
@@ -479,16 +669,29 @@ def telegram_bot_listener():
                             # Keep only recent 100 message IDs to prevent memory leak
                             if len(processed_messages) > 100:
                                 processed_messages = set(list(processed_messages)[-50:])
+                    
+                    # Handle callback queries (button clicks)
+                    elif 'callback_query' in update:
+                        callback_query = update['callback_query']
+                        callback_id = callback_query.get('id')
+                        
+                        # Skip if already processed
+                        if callback_id in processed_callbacks:
+                            continue
+                            
+                        print(f"📱 Received callback: {callback_query.get('data')}")
+                        handle_callback_query(callback_query)
+                        processed_callbacks.add(callback_id)
+                        
+                        # Keep only recent 100 callback IDs to prevent memory leak
+                        if len(processed_callbacks) > 100:
+                            processed_callbacks = set(list(processed_callbacks)[-50:])
             
             time.sleep(2)  # Check for updates every 2 seconds
             
         except Exception as e:
             print(f"❌ Error in telegram listener: {e}")
             time.sleep(5)  # Wait before retry
-
-def check_bloomberg_emails():
-    """Fungsi utama untuk mengecek email Bloomberg"""
-    global monitoring_active
 
 def check_bloomberg_emails():
     """Fungsi utama untuk mengecek email Bloomberg"""
@@ -600,12 +803,6 @@ def main():
         save_monitoring_status(False)
         send_telegram_message("🛑 *Bot Stopped*\n\nMonitoring has been stopped manually")
         print("👋 Bot stopped!")
-
-import time
-
-def run_realtime(interval=30):
-    """Legacy function - now handled by main()"""
-    main()
 
 if __name__ == '__main__':
     main()

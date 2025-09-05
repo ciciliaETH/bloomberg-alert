@@ -1,31 +1,30 @@
 # Credentials dan sensitive files
 token.json
 credentials.json
-service_account.json
 .env
 
 # Python
 __pycache__/
 *.py[cod]
-*$py.class
-*.so
+*.pyc
 .Python
-env/
 venv/
-ENV/
-env.bak/
-venv.bak/
+env/
 
-# Local data files
+# Local data files (will be recreated on server)
 last_email_id.txt
 last_email_data.json
+monitoring_status.json
+subscribers.json
 
 # IDE
 .vscode/
 .idea/
 *.swp
-*.swo
 
 # OS
 .DS_Store
 Thumbs.db
+
+# Deployment
+.vercel/
