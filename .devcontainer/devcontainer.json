@@ -1,0 +1,16 @@
+# GitHub Codespaces Configuration
+# Automatically setup development environment
+
+name: Bloomberg Alert Bot
+image: mcr.microsoft.com/vscode/devcontainers/python:3.11
+
+# Port forwarding for webhook (if needed)
+forwardPorts:
+  - 8080
+
+# Auto-install dependencies
+postCreateCommand: pip install -r requirements.txt
+
+# Environment setup
+remoteEnv:
+  PYTHONPATH: /workspaces/bloomberg-alert
