@@ -186,8 +186,7 @@ def send_telegram_message(text, chat_id=None, reply_to_message_id=None):
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         payload = {
             'chat_id': target_chat_id,
-            'text': text,
-            'parse_mode': 'HTML'
+            'text': text
         }
         
         if reply_to_message_id:
@@ -220,8 +219,7 @@ def send_telegram_message_with_keyboard(text, chat_id=None, keyboard=None):
         url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
         payload = {
             'chat_id': target_chat_id,
-            'text': text,
-            'parse_mode': 'HTML'
+            'text': text
         }
         
         if keyboard:
@@ -416,9 +414,9 @@ def handle_telegram_command(message):
                   f"🤖 Bot: @cicilianews_bot"
     
     elif text == '/help':
-        response = f"🤖 <b>Kojin Bloomberg Alert Bot</b>\n\n" \
+        response = f"🤖 *Kojin Bloomberg Alert Bot*\n\n" \
                   f"📧 Kojin Monitors Bloomberg emails and sends headlines\n\n" \
-                  f"<b>Commands:</b>\n" \
+                  f"*Commands:*\n" \
                   f"• `/start` - Start monitoring\n" \
                   f"• `/status` - Check current status\n" \
                   f"• `/test` - Test bot connection\n" \
@@ -428,7 +426,7 @@ def handle_telegram_command(message):
                   f"💡 Bot runs continuously once started"
     
     else:
-        response = f"❓ <b>Unknown Command</b>\n\n" \
+        response = f"❓ *Unknown Command*\n\n" \
                   f"Use `/help` to see available commands"
     
     return send_telegram_message(response, chat_id=chat_id, reply_to_message_id=message_id)
@@ -456,7 +454,7 @@ def handle_callback_query(callback_query):
                     analysis = ai_data['analysis']
                     
                     # Send AI analysis as new message
-                    ai_message = f"<b>🤖 AI Analysis:</b>\n\n{analysis}"
+                    ai_message = f"*🤖 AI Analysis:*\n\n{analysis}"
                     send_telegram_message(ai_message, chat_id)
                     print(f"📖 Sent AI analysis to {chat_id}")
                 else:
@@ -555,7 +553,7 @@ def send_to_telegram(headline, date):
         ai_analysis = generate_ai_analysis(headline)
         
         # Format pesan utama (tanpa AI analysis)
-        message = f"<b>🔔 Bloomberg Alert</b>\n\n" \
+        message = f"*🔔 Bloomberg Alert*\n\n" \
                  f"{headline}\n\n" \
                  f"{formatted_time}"
         
@@ -778,10 +776,10 @@ def main():
     
     if monitoring_active:
         print("✅ Monitoring was active, resuming...")
-        send_telegram_message("🔄 <b>Bot Restarted</b>\n\nMonitoring resumed automatically")
+        send_telegram_message("🔄 *Bot Restarted*\n\nMonitoring resumed automatically")
     else:
         print("⏸️ Monitoring is inactive, waiting for /start command...")
-        send_telegram_message("🤖 <b>Kojin Bloomberg Bot Ready</b>\n\nSend `/start` to begin monitoring Bloomberg emails")
+        send_telegram_message("🤖 Kojin Bloomberg Bot Ready\n\nSend /start to begin monitoring Bloomberg emails")
     
     # Start Telegram bot listener in separate thread
     telegram_thread = threading.Thread(target=telegram_bot_listener, daemon=True)
@@ -801,7 +799,7 @@ def main():
         print("\n🛑 Stopping bot...")
         monitoring_active = False
         save_monitoring_status(False)
-        send_telegram_message("🛑 <b>Bot Stopped</b>\n\nMonitoring has been stopped manually")
+        send_telegram_message("🛑 *Bot Stopped*\n\nMonitoring has been stopped manually")
         print("👋 Bot stopped!")
 
 if __name__ == '__main__':
