@@ -569,7 +569,7 @@ def generate_smart_template_analysis(headline):
     return analysis
 
 def generate_ai_analysis(headline):
-    """Generate AI analysis dari headline Bloomberg menggunakan Gemini untuk Ubuntu 20.04"""
+    """Generate AI analysis for old google-generativeai versions (Ubuntu 20.04)"""
     if not GEMINI_AVAILABLE:
         print("⚠️ Google Generative AI not installed")
         return None
@@ -589,106 +589,126 @@ Paragraf kedua: jelaskan konteks, dampak, atau implikasi dari berita tersebut (m
 
 Gunakan bahasa formal, padat, tapi tetap enak dibaca. Tulis dalam bahasa Indonesia."""
 
-        # Method 1: Try newest API (v0.3.x)
-        try:
-            print("🔄 Trying GenerativeModel API (v0.3.x)...")
-            model = genai.GenerativeModel('gemini-1.5-flash')  # Use most stable model
-            response = model.generate_content(prompt)
-            if response and hasattr(response, 'text') and response.text:
-                analysis = response.text.strip()
-                print(f"✅ AI analysis generated with GenerativeModel (length: {len(analysis)})")
-                return analysis
-        except Exception as e:
-            print(f"❌ GenerativeModel v0.3.x failed: {str(e)}")
+        # Method 1: Try generate_text with different model names (for old versions)
+        old_model_names = [
+            'models/text-bison-001',
+            'text-bison-001', 
+            'models/chat-bison-001',
+            'chat-bison-001'
+        ]
         
-        # Method 2: Try alternative model
-        try:
-            print("🔄 Trying Gemini Pro model...")
-            model = genai.GenerativeModel('gemini-pro')
-            response = model.generate_content(prompt)
-            if response and hasattr(response, 'text') and response.text:
-                analysis = response.text.strip()
-                print(f"✅ AI analysis generated with Gemini Pro (length: {len(analysis)})")
-                return analysis
-        except Exception as e:
-            print(f"❌ Gemini Pro failed: {str(e)}")
+        for model_name in old_model_names:
+            try:
+                print(f"🔄 Trying generate_text with {model_name}...")
+                response = genai.generate_text(
+                    model=model_name,
+                    prompt=prompt,
+                    temperature=0.7,
+                    max_output_tokens=800,
+                    candidate_count=1
+                )
+                
+                if response and hasattr(response, 'result') and response.result:
+                    analysis = response.result.strip()
+                    if analysis and len(analysis) > 50:  # Ensure meaningful response
+                        print(f"✅ AI analysis generated with {model_name} (length: {len(analysis)})")
+                        return analysis
+                elif response and hasattr(response, 'candidates') and response.candidates:
+                    # Handle different response format
+                    candidate = response.candidates[0]
+                    if hasattr(candidate, 'output'):
+                        analysis = candidate.output.strip()
+                        if analysis and len(analysis) > 50:
+                            print(f"✅ AI analysis generated with {model_name} (length: {len(analysis)})")
+                            return analysis
+                
+                print(f"❌ {model_name}: No valid result")
+                
+            except Exception as e:
+                print(f"❌ {model_name} failed: {str(e)}")
         
-        # Method 3: Try legacy generate_text API (v0.2.x)
+        # Method 2: Try direct REST API with v1beta2 (older API)
         try:
-            print("🔄 Trying legacy generate_text API...")
-            response = genai.generate_text(
-                model='models/text-bison-001',
-                prompt=prompt,
-                temperature=0.7,
-                max_output_tokens=800
-            )
-            if response and hasattr(response, 'result') and response.result:
-                analysis = response.result.strip()
-                print(f"✅ AI analysis generated with generate_text (length: {len(analysis)})")
-                return analysis
-        except Exception as e:
-            print(f"❌ generate_text failed: {str(e)}")
-        
-        # Method 4: Direct REST API call (fallback)
-        try:
-            print("🔄 Trying direct REST API...")
+            print("🔄 Trying direct REST API (v1beta2)...")
             import requests
             
-            # Use v1beta endpoint for better compatibility
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+            url = f"https://generativelanguage.googleapis.com/v1beta2/models/text-bison-001:generateText?key={GEMINI_API_KEY}"
             
             payload = {
-                "contents": [{
-                    "parts": [{
-                        "text": prompt
-                    }]
-                }],
-                "generationConfig": {
-                    "temperature": 0.7,
-                    "topK": 40,
-                    "topP": 0.95,
-                    "maxOutputTokens": 1024,
-                }
+                "prompt": {
+                    "text": prompt
+                },
+                "temperature": 0.7,
+                "candidateCount": 1,
+                "maxOutputTokens": 800
             }
             
-            headers = {
-                'Content-Type': 'application/json'
-            }
-            
+            headers = {'Content-Type': 'application/json'}
             response = requests.post(url, json=payload, headers=headers, timeout=30)
             
             print(f"API Response Status: {response.status_code}")
             
             if response.status_code == 200:
                 result = response.json()
-                print(f"API Response: {str(result)[:200]}...")
+                print(f"API Response keys: {list(result.keys())}")
                 
-                if 'candidates' in result and len(result['candidates']) > 0:
+                if 'candidates' in result and result['candidates']:
                     candidate = result['candidates'][0]
-                    if 'content' in candidate:
-                        content = candidate['content']
-                        if 'parts' in content and len(content['parts']) > 0:
-                            text = content['parts'][0].get('text', '')
-                            if text and text.strip():
-                                analysis = text.strip()
-                                print(f"✅ AI analysis generated with REST API (length: {len(analysis)})")
-                                return analysis
+                    if 'output' in candidate:
+                        analysis = candidate['output'].strip()
+                        if analysis and len(analysis) > 50:
+                            print(f"✅ AI analysis generated with v1beta2 API (length: {len(analysis)})")
+                            return analysis
                 
-                print("❌ No valid content found in API response")
+                print("❌ No valid content in v1beta2 response")
             else:
                 error_text = response.text
-                print(f"❌ REST API failed: {response.status_code} - {error_text[:200]}")
+                print(f"❌ v1beta2 API failed: {response.status_code} - {error_text[:200]}")
                 
-                # Check for common errors
-                if "API_KEY_INVALID" in error_text:
-                    print("❌ Invalid API key")
-                elif "QUOTA_EXCEEDED" in error_text:
-                    print("❌ Quota exceeded")
-                elif "MODEL_NOT_FOUND" in error_text:
-                    print("❌ Model not found")
-                    
         except Exception as e:
-            print(f"❌ REST API exception: {str(e)}")
+            print(f"❌ v1beta2 API exception: {str(e)}")
+        
+        # Method 3: Try with v1beta (newer format)
+        try:
+            print("🔄 Trying direct REST API (v1beta)...")
+            import requests
+            
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/text-bison-001:generateText?key={GEMINI_API_KEY}"
+            
+            payload = {
+                "prompt": {
+                    "text": prompt
+                },
+                "temperature": 0.7,
+                "candidateCount": 1
+            }
+            
+            headers = {'Content-Type': 'application/json'}
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            
+            print(f"API Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"API Response keys: {list(result.keys())}")
+                
+                if 'candidates' in result and result['candidates']:
+                    candidate = result['candidates'][0]
+                    # Try different response field names
+                    for field in ['output', 'text', 'content']:
+                        if field in candidate:
+                            analysis = candidate[field].strip()
+                            if analysis and len(analysis) > 50:
+                                print(f"✅ AI analysis generated with v1beta API (length: {len(analysis)})")
+                                return analysis
+                
+                print("❌ No valid content in v1beta response")
+            else:
+                error_text = response.text
+                print(f"❌ v1beta API failed: {response.status_code} - {error_text[:200]}")
+                
+        except Exception as e:
+            print(f"❌ v1beta API exception: {str(e)}")
         
         # If all methods fail
         print("❌ All AI methods failed")
