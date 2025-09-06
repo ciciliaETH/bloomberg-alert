@@ -491,85 +491,8 @@ def answer_callback_query(query_id, text=""):
         print(f"❌ Error answering callback query: {e}")
         return False
 
-def generate_smart_template_analysis(headline):
-    """Generate intelligent template analysis based on keywords and patterns"""
-    import re
-    from datetime import datetime
-    
-    headline_lower = headline.lower()
-    
-    # Market-related keywords
-    bullish_keywords = ['naik', 'meningkat', 'tumbuh', 'positif', 'untung', 'profit', 'surplus', 'kuat', 'stabil', 'optimis']
-    bearish_keywords = ['turun', 'menurun', 'jatuh', 'rugi', 'defisit', 'lemah', 'krisis', 'resesi', 'inflasi', 'risiko']
-    
-    # Sector keywords
-    tech_keywords = ['teknologi', 'digital', 'startup', 'fintech', 'e-commerce', 'telkom', 'gojek', 'tokopedia', 'bukalapak']
-    finance_keywords = ['bank', 'bri', 'bni', 'mandiri', 'bca', 'kredit', 'suku bunga', 'bi', 'rupiah', 'pajak']
-    energy_keywords = ['energi', 'pertamina', 'listrik', 'pln', 'batu bara', 'minyak', 'gas', 'terbarukan']
-    property_keywords = ['properti', 'rumah', 'apartemen', 'reit', 'konstruksi', 'infrastruktur', 'toll', 'jalan']
-    
-    # Companies
-    companies = ['bri', 'bca', 'mandiri', 'bni', 'telkom', 'pertamina', 'pln', 'antam', 'adro', 'goto', 'bumi']
-    
-    # Determine market sentiment
-    sentiment = "neutral"
-    if any(word in headline_lower for word in bullish_keywords):
-        sentiment = "bullish"
-    elif any(word in headline_lower for word in bearish_keywords):
-        sentiment = "bearish"
-    
-    # Determine sector
-    sector = "pasar umum"
-    if any(word in headline_lower for word in tech_keywords):
-        sector = "teknologi"
-    elif any(word in headline_lower for word in finance_keywords):
-        sector = "perbankan dan keuangan"
-    elif any(word in headline_lower for word in energy_keywords):
-        sector = "energi"
-    elif any(word in headline_lower for word in property_keywords):
-        sector = "properti dan infrastruktur"
-    
-    # Find mentioned companies
-    mentioned_companies = [comp.upper() for comp in companies if comp in headline_lower]
-    
-    # Generate analysis based on patterns
-    if sentiment == "bullish":
-        analysis = f"Perkembangan positif di sektor {sector} menunjukkan momentum yang menggembirakan. "
-        if mentioned_companies:
-            analysis += f"Kinerja perusahaan seperti {', '.join(mentioned_companies[:3])} mengindikasikan sentimen investor yang optimis. "
-        else:
-            analysis += "Indikator-indikator ekonomi menunjukkan tren positif yang dapat mendorong kinerja saham terkait. "
-        
-        analysis += f"\n\nDampak dari perkembangan ini diperkirakan akan memperkuat posisi sektor {sector} dalam jangka menengah. "
-        analysis += "Para investor disarankan untuk memantau volume perdagangan dan korelasi dengan indeks pasar secara keseluruhan. "
-        analysis += "Meskipun outlook positif, diversifikasi portofolio tetap menjadi strategi yang bijaksana."
-        
-    elif sentiment == "bearish":
-        analysis = f"Tekanan di sektor {sector} mencerminkan tantangan yang perlu diwaspadai oleh pelaku pasar. "
-        if mentioned_companies:
-            analysis += f"Khususnya untuk emiten seperti {', '.join(mentioned_companies[:3])}, perkembangan ini dapat mempengaruhi valuasi jangka pendek. "
-        else:
-            analysis += "Kondisi ini menunjukkan perlunya strategi defensif dalam pengelolaan portofolio investasi. "
-        
-        analysis += f"\n\nPara analis merekomendasikan pemantauan ketat terhadap level support teknis dan aliran dana institusional. "
-        analysis += f"Diversifikasi lintas sektor menjadi kunci untuk mengurangi risiko eksposur berlebihan. "
-        analysis += "Timing entry yang tepat akan krusial mengingat volatilitas yang meningkat."
-        
-    else:
-        analysis = f"Dinamika di sektor {sector} menunjukkan kondisi wait-and-see dari pelaku pasar. "
-        if mentioned_companies:
-            analysis += f"Saham-saham seperti {', '.join(mentioned_companies[:3])} berpotensi mengalami konsolidasi harga. "
-        else:
-            analysis += "Pergerakan sideways ini mencerminkan ketidakpastian arah pasar dalam jangka pendek. "
-        
-        analysis += f"\n\nKondisi ini mengindikasikan bahwa pasar sedang menunggu katalis baru untuk menentukan arah trend selanjutnya. "
-        analysis += f"Analisis teknikal dan fundamental akan menjadi kunci dalam menentukan posisi trading yang optimal. "
-        analysis += "Manajemen risiko yang ketat sangat direkomendasikan dalam kondisi pasar seperti ini."
-    
-    return analysis
-
 def generate_ai_analysis(headline):
-    """Generate AI analysis for old google-generativeai versions (Ubuntu 20.04)"""
+    """Generate AI analysis using Google Gemini API"""
     if not GEMINI_AVAILABLE:
         print("⚠️ Google Generative AI not installed")
         return None
@@ -579,7 +502,6 @@ def generate_ai_analysis(headline):
         return None
     
     try:
-        # Configure Gemini API
         genai.configure(api_key=GEMINI_API_KEY)
         
         prompt = f"""Tolong bikin penjelasan berita dengan gaya Bloomberg/Reuters, panjang 2 paragraf. Gunakan headline berikut: {headline}
@@ -589,133 +511,70 @@ Paragraf kedua: jelaskan konteks, dampak, atau implikasi dari berita tersebut (m
 
 Gunakan bahasa formal, padat, tapi tetap enak dibaca. Tulis dalam bahasa Indonesia."""
 
-        # Method 1: Try generate_text with different model names (for old versions)
-        old_model_names = [
-            'models/text-bison-001',
-            'text-bison-001', 
-            'models/chat-bison-001',
-            'chat-bison-001'
-        ]
-        
-        for model_name in old_model_names:
+        # Try modern API first (if available)
+        if hasattr(genai, 'GenerativeModel'):
             try:
-                print(f"🔄 Trying generate_text with {model_name}...")
-                response = genai.generate_text(
-                    model=model_name,
-                    prompt=prompt,
-                    temperature=0.7,
-                    max_output_tokens=800,
-                    candidate_count=1
-                )
-                
-                if response and hasattr(response, 'result') and response.result:
-                    analysis = response.result.strip()
-                    if analysis and len(analysis) > 50:  # Ensure meaningful response
-                        print(f"✅ AI analysis generated with {model_name} (length: {len(analysis)})")
-                        return analysis
-                elif response and hasattr(response, 'candidates') and response.candidates:
-                    # Handle different response format
-                    candidate = response.candidates[0]
-                    if hasattr(candidate, 'output'):
-                        analysis = candidate.output.strip()
-                        if analysis and len(analysis) > 50:
-                            print(f"✅ AI analysis generated with {model_name} (length: {len(analysis)})")
-                            return analysis
-                
-                print(f"❌ {model_name}: No valid result")
-                
+                print("🔄 Using GenerativeModel API...")
+                model = genai.GenerativeModel('gemini-pro')
+                response = model.generate_content(prompt)
+                if response and hasattr(response, 'text') and response.text:
+                    analysis = response.text.strip()
+                    print(f"✅ AI analysis generated ({len(analysis)} chars)")
+                    return analysis
             except Exception as e:
-                print(f"❌ {model_name} failed: {str(e)}")
+                print(f"❌ GenerativeModel failed: {str(e)}")
         
-        # Method 2: Try direct REST API with v1beta2 (older API)
+        # Try legacy API (for older versions)
         try:
-            print("🔄 Trying direct REST API (v1beta2)...")
+            print("🔄 Using legacy generate_text API...")
+            response = genai.generate_text(
+                model='models/text-bison-001',
+                prompt=prompt,
+                temperature=0.7,
+                max_output_tokens=800
+            )
+            
+            if response and hasattr(response, 'result') and response.result:
+                analysis = response.result.strip()
+                print(f"✅ AI analysis generated ({len(analysis)} chars)")
+                return analysis
+                
+        except Exception as e:
+            print(f"❌ Legacy API failed: {str(e)}")
+        
+        # Direct REST API fallback
+        try:
+            print("🔄 Using direct REST API...")
             import requests
             
             url = f"https://generativelanguage.googleapis.com/v1beta2/models/text-bison-001:generateText?key={GEMINI_API_KEY}"
-            
             payload = {
-                "prompt": {
-                    "text": prompt
-                },
-                "temperature": 0.7,
-                "candidateCount": 1,
-                "maxOutputTokens": 800
-            }
-            
-            headers = {'Content-Type': 'application/json'}
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
-            
-            print(f"API Response Status: {response.status_code}")
-            
-            if response.status_code == 200:
-                result = response.json()
-                print(f"API Response keys: {list(result.keys())}")
-                
-                if 'candidates' in result and result['candidates']:
-                    candidate = result['candidates'][0]
-                    if 'output' in candidate:
-                        analysis = candidate['output'].strip()
-                        if analysis and len(analysis) > 50:
-                            print(f"✅ AI analysis generated with v1beta2 API (length: {len(analysis)})")
-                            return analysis
-                
-                print("❌ No valid content in v1beta2 response")
-            else:
-                error_text = response.text
-                print(f"❌ v1beta2 API failed: {response.status_code} - {error_text[:200]}")
-                
-        except Exception as e:
-            print(f"❌ v1beta2 API exception: {str(e)}")
-        
-        # Method 3: Try with v1beta (newer format)
-        try:
-            print("🔄 Trying direct REST API (v1beta)...")
-            import requests
-            
-            url = f"https://generativelanguage.googleapis.com/v1beta/models/text-bison-001:generateText?key={GEMINI_API_KEY}"
-            
-            payload = {
-                "prompt": {
-                    "text": prompt
-                },
+                "prompt": {"text": prompt},
                 "temperature": 0.7,
                 "candidateCount": 1
             }
             
-            headers = {'Content-Type': 'application/json'}
-            response = requests.post(url, json=payload, headers=headers, timeout=30)
-            
-            print(f"API Response Status: {response.status_code}")
+            response = requests.post(url, json=payload, timeout=30)
             
             if response.status_code == 200:
                 result = response.json()
-                print(f"API Response keys: {list(result.keys())}")
-                
                 if 'candidates' in result and result['candidates']:
                     candidate = result['candidates'][0]
-                    # Try different response field names
-                    for field in ['output', 'text', 'content']:
-                        if field in candidate:
-                            analysis = candidate[field].strip()
-                            if analysis and len(analysis) > 50:
-                                print(f"✅ AI analysis generated with v1beta API (length: {len(analysis)})")
-                                return analysis
-                
-                print("❌ No valid content in v1beta response")
+                    if 'output' in candidate:
+                        analysis = candidate['output'].strip()
+                        print(f"✅ AI analysis generated ({len(analysis)} chars)")
+                        return analysis
             else:
-                error_text = response.text
-                print(f"❌ v1beta API failed: {response.status_code} - {error_text[:200]}")
+                print(f"❌ REST API failed: {response.status_code}")
                 
         except Exception as e:
-            print(f"❌ v1beta API exception: {str(e)}")
+            print(f"❌ REST API failed: {str(e)}")
         
-        # If all methods fail
         print("❌ All AI methods failed")
         return None
             
     except Exception as e:
-        print(f"❌ Error in generate_ai_analysis: {str(e)}")
+        print(f"❌ AI analysis error: {str(e)}")
         return None
 
 def format_bloomberg_time(email_date_str):
