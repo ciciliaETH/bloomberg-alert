@@ -172,7 +172,7 @@ def clear_webhook():
         print(f"❌ Error clearing webhook: {e}")
         return None
 
-def send_telegram_message(text, chat_id=None, reply_to_message_id=None):
+def send_telegram_message(text, chat_id=None, reply_to_message_id=None, parse_mode='HTML'):
     """Mengirim pesan ke Telegram (single chat)"""
     try:
         # Gunakan chat_id yang diberikan, atau default TELEGRAM_CHAT_ID
@@ -189,6 +189,10 @@ def send_telegram_message(text, chat_id=None, reply_to_message_id=None):
             'text': text
         }
         
+        # Add parse_mode if specified
+        if parse_mode:
+            payload['parse_mode'] = parse_mode
+        
         if reply_to_message_id:
             payload['reply_to_message_id'] = reply_to_message_id
         
@@ -200,12 +204,14 @@ def send_telegram_message(text, chat_id=None, reply_to_message_id=None):
             print(f"❌ Error sending message to {target_chat_id}: {response.status_code}")
             print(f"Response: {response.text}")
             return False
+            print(f"Response: {response.text}")
+            return False
             
     except Exception as e:
         print(f"❌ Error sending message: {e}")
         return False
 
-def send_telegram_message_with_keyboard(text, chat_id=None, keyboard=None):
+def send_telegram_message_with_keyboard(text, chat_id=None, keyboard=None, parse_mode='HTML'):
     """Mengirim pesan ke Telegram dengan inline keyboard"""
     try:
         # Gunakan chat_id yang diberikan, atau default TELEGRAM_CHAT_ID
@@ -222,6 +228,10 @@ def send_telegram_message_with_keyboard(text, chat_id=None, keyboard=None):
             'text': text
         }
         
+        # Add parse_mode if specified
+        if parse_mode:
+            payload['parse_mode'] = parse_mode
+        
         if keyboard:
             import json
             payload['reply_markup'] = json.dumps(keyboard)
@@ -232,6 +242,8 @@ def send_telegram_message_with_keyboard(text, chat_id=None, keyboard=None):
             return True
         else:
             print(f"❌ Error sending message with keyboard to {target_chat_id}: {response.status_code}")
+            print(f"Response: {response.text}")
+            return False
             print(f"Response: {response.text}")
             return False
             
@@ -414,20 +426,20 @@ def handle_telegram_command(message):
                   f"🤖 Bot: @cicilianews_bot"
     
     elif text == '/help':
-        response = f"🤖 *Kojin Bloomberg Alert Bot*\n\n" \
+        response = f"🤖 <b>Kojin Bloomberg Alert Bot</b>\n\n" \
                   f"📧 Kojin Monitors Bloomberg emails and sends headlines\n\n" \
-                  f"*Commands:*\n" \
-                  f"• `/start` - Start monitoring\n" \
-                  f"• `/status` - Check current status\n" \
-                  f"• `/test` - Test bot connection\n" \
-                  f"• `/unsubscribe` - Stop receiving alerts\n" \
-                  f"• `/subscribers` - Show subscriber count\n" \
-                  f"• `/help` - Show this help\n\n" \
+                  f"<b>Commands:</b>\n" \
+                  f"• /start - Start monitoring\n" \
+                  f"• /status - Check current status\n" \
+                  f"• /test - Test bot connection\n" \
+                  f"• /unsubscribe - Stop receiving alerts\n" \
+                  f"• /subscribers - Show subscriber count\n" \
+                  f"• /help - Show this help\n\n" \
                   f"💡 Bot runs continuously once started"
     
     else:
-        response = f"❓ *Unknown Command*\n\n" \
-                  f"Use `/help` to see available commands"
+        response = f"❓ <b>Unknown Command</b>\n\n" \
+                  f"Use /help to see available commands"
     
     return send_telegram_message(response, chat_id=chat_id, reply_to_message_id=message_id)
 
@@ -453,14 +465,14 @@ def handle_callback_query(callback_query):
                     headline = ai_data['headline']
                     analysis = ai_data['analysis']
                     
-                    # Send AI analysis as new message
-                    ai_message = f"*🤖 AI Analysis:*\n\n{analysis}"
+                    # Send AI analysis as new message with HTML formatting
+                    ai_message = f"<b>🤖 AI Analysis:</b>\n\n{analysis}"
                     send_telegram_message(ai_message, chat_id)
                     print(f"📖 Sent AI analysis to {chat_id}")
                 else:
-                    send_telegram_message("❌ AI analysis not found or expired", chat_id)
+                    send_telegram_message("❌ AI analysis not found or expired", chat_id, parse_mode=None)
             else:
-                send_telegram_message("❌ AI analysis not available", chat_id)
+                send_telegram_message("❌ AI analysis not available", chat_id, parse_mode=None)
                 
     except Exception as e:
         print(f"❌ Error handling callback query: {e}")
@@ -565,8 +577,8 @@ def send_to_telegram(headline, date):
         # Generate AI analysis
         ai_analysis = generate_ai_analysis(headline)
         
-        # Format pesan utama (tanpa AI analysis)
-        message = f"*🔔 Bloomberg Alert*\n\n" \
+        # Format pesan utama dengan HTML bold formatting
+        message = f"<b>🔔 Bloomberg Alert</b>\n\n" \
                  f"{headline}\n\n" \
                  f"{formatted_time}"
         
@@ -789,7 +801,7 @@ def main():
     
     if monitoring_active:
         print("✅ Monitoring was active, resuming...")
-        send_telegram_message("🔄 *Bot Restarted*\n\nMonitoring resumed automatically")
+        send_telegram_message("🔄 <b>Bot Restarted</b>\n\nMonitoring resumed automatically")
     else:
         print("⏸️ Monitoring is inactive, waiting for /start command...")
         send_telegram_message("🤖 Kojin Bloomberg Bot Ready\n\nSend /start to begin monitoring Bloomberg emails")
@@ -812,7 +824,7 @@ def main():
         print("\n🛑 Stopping bot...")
         monitoring_active = False
         save_monitoring_status(False)
-        send_telegram_message("🛑 *Bot Stopped*\n\nMonitoring has been stopped manually")
+        send_telegram_message("🛑 <b>Bot Stopped</b>\n\nMonitoring has been stopped manually")
         print("👋 Bot stopped!")
 
 if __name__ == '__main__':
