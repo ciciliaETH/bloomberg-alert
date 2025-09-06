@@ -569,91 +569,134 @@ def generate_smart_template_analysis(headline):
     return analysis
 
 def generate_ai_analysis(headline):
-    """Generate AI analysis dari headline Bloomberg menggunakan Gemini"""
+    """Generate AI analysis dari headline Bloomberg menggunakan Gemini untuk Ubuntu 20.04"""
     if not GEMINI_AVAILABLE:
-        print("⚠️ AI not available, using smart template")
-        return generate_smart_template_analysis(headline)
+        print("⚠️ Google Generative AI not installed")
+        return None
+    
+    if not GEMINI_API_KEY or GEMINI_API_KEY == 'YOUR_GEMINI_KEY':
+        print("❌ Gemini API key not configured")
+        return None
     
     try:
         # Configure Gemini API
-        if GEMINI_API_KEY and GEMINI_API_KEY != 'YOUR_GEMINI_KEY':
-            genai.configure(api_key=GEMINI_API_KEY)
-            
-            prompt = f"""Tolong bikin penjelasan berita dengan gaya Bloomberg/Reuters, panjang 2 paragraf. Gunakan headline berikut: {headline}
+        genai.configure(api_key=GEMINI_API_KEY)
+        
+        prompt = f"""Tolong bikin penjelasan berita dengan gaya Bloomberg/Reuters, panjang 2 paragraf. Gunakan headline berikut: {headline}
 
 Paragraf pertama: jelaskan isi utama berita (siapa, apa, kapan, data/indikator utama kalau ada).
 Paragraf kedua: jelaskan konteks, dampak, atau implikasi dari berita tersebut (misalnya ke pasar, kebijakan, atau tren yang lebih luas). 
 
 Gunakan bahasa formal, padat, tapi tetap enak dibaca. Tulis dalam bahasa Indonesia."""
 
-            # Try newer API first (GenerativeModel)
-            try:
-                print("🔄 Trying GenerativeModel API...")
-                model = genai.GenerativeModel('gemini-pro')
-                response = model.generate_content(prompt)
+        # Method 1: Try newest API (v0.3.x)
+        try:
+            print("🔄 Trying GenerativeModel API (v0.3.x)...")
+            model = genai.GenerativeModel('gemini-1.5-flash')  # Use most stable model
+            response = model.generate_content(prompt)
+            if response and hasattr(response, 'text') and response.text:
                 analysis = response.text.strip()
-                print("✅ AI analysis generated with GenerativeModel")
+                print(f"✅ AI analysis generated with GenerativeModel (length: {len(analysis)})")
                 return analysis
-            except Exception as e:
-                print(f"❌ GenerativeModel failed: {e}")
-            
-            # Try older generate_text API
-            try:
-                print("🔄 Trying generate_text API...")
-                response = genai.generate_text(prompt=prompt)
-                if hasattr(response, 'result'):
-                    analysis = response.result.strip()
-                elif hasattr(response, 'text'):
-                    analysis = response.text.strip()
-                else:
-                    analysis = str(response).strip()
-                print("✅ AI analysis generated with generate_text")
-                return analysis
-            except Exception as e:
-                print(f"❌ generate_text failed: {e}")
-            
-            # Try simple text generation (fallback for very old versions)
-            try:
-                print("🔄 Trying simple text generation...")
-                # For very old versions, try direct API call
-                headers = {'Content-Type': 'application/json'}
-                data = {
-                    'prompt': {'text': prompt},
-                    'temperature': 0.7,
-                    'candidate_count': 1
-                }
-                
-                # This is a fallback - might not work but worth trying
-                response = requests.post(
-                    f'https://generativelanguage.googleapis.com/v1beta/models/text-bison-001:generateText?key={GEMINI_API_KEY}',
-                    headers=headers,
-                    json=data,
-                    timeout=30
-                )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    if 'candidates' in result and result['candidates']:
-                        analysis = result['candidates'][0].get('output', '').strip()
-                        if analysis:
-                            print("✅ AI analysis generated with direct API")
-                            return analysis
-                
-                print(f"❌ Direct API failed: {response.status_code}")
-            except Exception as e:
-                print(f"❌ Direct API exception: {e}")
-            
-            # If all AI methods fail, use smart template
-            print("⚠️ All AI methods failed, using smart template")
-            return generate_smart_template_analysis(headline)
+        except Exception as e:
+            print(f"❌ GenerativeModel v0.3.x failed: {str(e)}")
         
-        else:
-            print("❌ Gemini API key not configured")
-            return generate_smart_template_analysis(headline)
+        # Method 2: Try alternative model
+        try:
+            print("🔄 Trying Gemini Pro model...")
+            model = genai.GenerativeModel('gemini-pro')
+            response = model.generate_content(prompt)
+            if response and hasattr(response, 'text') and response.text:
+                analysis = response.text.strip()
+                print(f"✅ AI analysis generated with Gemini Pro (length: {len(analysis)})")
+                return analysis
+        except Exception as e:
+            print(f"❌ Gemini Pro failed: {str(e)}")
+        
+        # Method 3: Try legacy generate_text API (v0.2.x)
+        try:
+            print("🔄 Trying legacy generate_text API...")
+            response = genai.generate_text(
+                model='models/text-bison-001',
+                prompt=prompt,
+                temperature=0.7,
+                max_output_tokens=800
+            )
+            if response and hasattr(response, 'result') and response.result:
+                analysis = response.result.strip()
+                print(f"✅ AI analysis generated with generate_text (length: {len(analysis)})")
+                return analysis
+        except Exception as e:
+            print(f"❌ generate_text failed: {str(e)}")
+        
+        # Method 4: Direct REST API call (fallback)
+        try:
+            print("🔄 Trying direct REST API...")
+            import requests
+            
+            # Use v1beta endpoint for better compatibility
+            url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key={GEMINI_API_KEY}"
+            
+            payload = {
+                "contents": [{
+                    "parts": [{
+                        "text": prompt
+                    }]
+                }],
+                "generationConfig": {
+                    "temperature": 0.7,
+                    "topK": 40,
+                    "topP": 0.95,
+                    "maxOutputTokens": 1024,
+                }
+            }
+            
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            
+            response = requests.post(url, json=payload, headers=headers, timeout=30)
+            
+            print(f"API Response Status: {response.status_code}")
+            
+            if response.status_code == 200:
+                result = response.json()
+                print(f"API Response: {str(result)[:200]}...")
+                
+                if 'candidates' in result and len(result['candidates']) > 0:
+                    candidate = result['candidates'][0]
+                    if 'content' in candidate:
+                        content = candidate['content']
+                        if 'parts' in content and len(content['parts']) > 0:
+                            text = content['parts'][0].get('text', '')
+                            if text and text.strip():
+                                analysis = text.strip()
+                                print(f"✅ AI analysis generated with REST API (length: {len(analysis)})")
+                                return analysis
+                
+                print("❌ No valid content found in API response")
+            else:
+                error_text = response.text
+                print(f"❌ REST API failed: {response.status_code} - {error_text[:200]}")
+                
+                # Check for common errors
+                if "API_KEY_INVALID" in error_text:
+                    print("❌ Invalid API key")
+                elif "QUOTA_EXCEEDED" in error_text:
+                    print("❌ Quota exceeded")
+                elif "MODEL_NOT_FOUND" in error_text:
+                    print("❌ Model not found")
+                    
+        except Exception as e:
+            print(f"❌ REST API exception: {str(e)}")
+        
+        # If all methods fail
+        print("❌ All AI methods failed")
+        return None
             
     except Exception as e:
-        print(f"❌ Error generating AI analysis: {e}")
-        return generate_smart_template_analysis(headline)
+        print(f"❌ Error in generate_ai_analysis: {str(e)}")
+        return None
 
 def format_bloomberg_time(email_date_str):
     """Convert email date string to Bloomberg format like: 08/09/25 14:32:00 UTC+7:00"""
@@ -693,15 +736,28 @@ def send_to_telegram(headline, date):
         formatted_time = format_bloomberg_time(date)
         
         # Generate AI analysis
+        print(f"🤖 Generating AI analysis for: {headline[:50]}...")
         ai_analysis = generate_ai_analysis(headline)
         
-        # Format pesan utama dengan HTML bold formatting
-        message = f"<b>🔔 Bloomberg Alert</b>\n\n" \
-                 f"{headline}\n\n" \
-                 f"{formatted_time}"
-        
-        # Broadcast ke semua subscribers dengan inline keyboard
-        return broadcast_to_subscribers_with_ai(message, headline, ai_analysis)
+        if ai_analysis:
+            print(f"✅ AI analysis generated successfully ({len(ai_analysis)} chars)")
+            # Format pesan utama dengan HTML bold formatting
+            message = f"<b>🔔 Bloomberg Alert</b>\n\n" \
+                     f"{headline}\n\n" \
+                     f"{formatted_time}"
+            
+            # Broadcast ke semua subscribers dengan inline keyboard
+            return broadcast_to_subscribers_with_ai(message, headline, ai_analysis)
+        else:
+            print("❌ AI analysis failed, sending simple alert")
+            # Send simple alert without AI analysis button
+            message = f"<b>🔔 Bloomberg Alert</b>\n\n" \
+                     f"{headline}\n\n" \
+                     f"{formatted_time}\n\n" \
+                     f"<i>AI analysis unavailable</i>"
+            
+            return broadcast_to_subscribers(message)
+            
     except Exception as e:
         print(f"❌ Error mengirim ke Telegram: {e}")
         return False

@@ -1,7 +1,17 @@
-google-auth==2.23.4
-google-auth-oauthlib==1.1.0
+# Bloomberg Alert Bot Requirements for Ubuntu 20.04 + Python 3.8
+
+# Google APIs (compatible versions for Python 3.8)
+google-auth==2.23.0
+google-auth-oauthlib==1.0.0
 google-auth-httplib2==0.1.1
-google-api-python-client==2.108.0
+google-api-python-client==2.100.0
+
+# Google Generative AI (try latest first, fallback to older)
+google-generativeai>=0.3.0
+
+# HTTP and networking
 requests==2.31.0
-google-generativeai==0.1.0rc1
-protobuf>=5.26.1
+urllib3==1.26.18
+
+# Protobuf (compatible with Python 3.8)
+protobuf>=3.20.0,<5.0.0
