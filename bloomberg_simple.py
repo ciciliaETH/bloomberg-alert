@@ -491,10 +491,88 @@ def answer_callback_query(query_id, text=""):
         print(f"❌ Error answering callback query: {e}")
         return False
 
+def generate_smart_template_analysis(headline):
+    """Generate intelligent template analysis based on keywords and patterns"""
+    import re
+    from datetime import datetime
+    
+    headline_lower = headline.lower()
+    
+    # Market-related keywords
+    bullish_keywords = ['naik', 'meningkat', 'tumbuh', 'positif', 'untung', 'profit', 'surplus', 'kuat', 'stabil', 'optimis']
+    bearish_keywords = ['turun', 'menurun', 'jatuh', 'rugi', 'defisit', 'lemah', 'krisis', 'resesi', 'inflasi', 'risiko']
+    
+    # Sector keywords
+    tech_keywords = ['teknologi', 'digital', 'startup', 'fintech', 'e-commerce', 'telkom', 'gojek', 'tokopedia', 'bukalapak']
+    finance_keywords = ['bank', 'bri', 'bni', 'mandiri', 'bca', 'kredit', 'suku bunga', 'bi', 'rupiah', 'pajak']
+    energy_keywords = ['energi', 'pertamina', 'listrik', 'pln', 'batu bara', 'minyak', 'gas', 'terbarukan']
+    property_keywords = ['properti', 'rumah', 'apartemen', 'reit', 'konstruksi', 'infrastruktur', 'toll', 'jalan']
+    
+    # Companies
+    companies = ['bri', 'bca', 'mandiri', 'bni', 'telkom', 'pertamina', 'pln', 'antam', 'adro', 'goto', 'bumi']
+    
+    # Determine market sentiment
+    sentiment = "neutral"
+    if any(word in headline_lower for word in bullish_keywords):
+        sentiment = "bullish"
+    elif any(word in headline_lower for word in bearish_keywords):
+        sentiment = "bearish"
+    
+    # Determine sector
+    sector = "pasar umum"
+    if any(word in headline_lower for word in tech_keywords):
+        sector = "teknologi"
+    elif any(word in headline_lower for word in finance_keywords):
+        sector = "perbankan dan keuangan"
+    elif any(word in headline_lower for word in energy_keywords):
+        sector = "energi"
+    elif any(word in headline_lower for word in property_keywords):
+        sector = "properti dan infrastruktur"
+    
+    # Find mentioned companies
+    mentioned_companies = [comp.upper() for comp in companies if comp in headline_lower]
+    
+    # Generate analysis based on patterns
+    if sentiment == "bullish":
+        analysis = f"Perkembangan positif di sektor {sector} menunjukkan momentum yang menggembirakan. "
+        if mentioned_companies:
+            analysis += f"Kinerja perusahaan seperti {', '.join(mentioned_companies[:3])} mengindikasikan sentimen investor yang optimis. "
+        else:
+            analysis += "Indikator-indikator ekonomi menunjukkan tren positif yang dapat mendorong kinerja saham terkait. "
+        
+        analysis += f"\n\nDampak dari perkembangan ini diperkirakan akan memperkuat posisi sektor {sector} dalam jangka menengah. "
+        analysis += "Para investor disarankan untuk memantau volume perdagangan dan korelasi dengan indeks pasar secara keseluruhan. "
+        analysis += "Meskipun outlook positif, diversifikasi portofolio tetap menjadi strategi yang bijaksana."
+        
+    elif sentiment == "bearish":
+        analysis = f"Tekanan di sektor {sector} mencerminkan tantangan yang perlu diwaspadai oleh pelaku pasar. "
+        if mentioned_companies:
+            analysis += f"Khususnya untuk emiten seperti {', '.join(mentioned_companies[:3])}, perkembangan ini dapat mempengaruhi valuasi jangka pendek. "
+        else:
+            analysis += "Kondisi ini menunjukkan perlunya strategi defensif dalam pengelolaan portofolio investasi. "
+        
+        analysis += f"\n\nPara analis merekomendasikan pemantauan ketat terhadap level support teknis dan aliran dana institusional. "
+        analysis += f"Diversifikasi lintas sektor menjadi kunci untuk mengurangi risiko eksposur berlebihan. "
+        analysis += "Timing entry yang tepat akan krusial mengingat volatilitas yang meningkat."
+        
+    else:
+        analysis = f"Dinamika di sektor {sector} menunjukkan kondisi wait-and-see dari pelaku pasar. "
+        if mentioned_companies:
+            analysis += f"Saham-saham seperti {', '.join(mentioned_companies[:3])} berpotensi mengalami konsolidasi harga. "
+        else:
+            analysis += "Pergerakan sideways ini mencerminkan ketidakpastian arah pasar dalam jangka pendek. "
+        
+        analysis += f"\n\nKondisi ini mengindikasikan bahwa pasar sedang menunggu katalis baru untuk menentukan arah trend selanjutnya. "
+        analysis += f"Analisis teknikal dan fundamental akan menjadi kunci dalam menentukan posisi trading yang optimal. "
+        analysis += "Manajemen risiko yang ketat sangat direkomendasikan dalam kondisi pasar seperti ini."
+    
+    return analysis
+
 def generate_ai_analysis(headline):
     """Generate AI analysis dari headline Bloomberg menggunakan Gemini"""
     if not GEMINI_AVAILABLE:
-        return None
+        print("⚠️ AI not available, using smart template")
+        return generate_smart_template_analysis(headline)
     
     try:
         # Configure Gemini API
@@ -565,17 +643,17 @@ Gunakan bahasa formal, padat, tapi tetap enak dibaca. Tulis dalam bahasa Indones
             except Exception as e:
                 print(f"❌ Direct API exception: {e}")
             
-            # If all methods fail, return a simple template
-            print("⚠️ All AI methods failed, using template")
-            return f"Berdasarkan headline '{headline}', ini merupakan perkembangan penting dalam sektor keuangan yang perlu diperhatikan. Dampak dari berita ini kemungkinan akan mempengaruhi pasar dan kebijakan terkait di masa mendatang."
+            # If all AI methods fail, use smart template
+            print("⚠️ All AI methods failed, using smart template")
+            return generate_smart_template_analysis(headline)
         
         else:
             print("❌ Gemini API key not configured")
-            return None
+            return generate_smart_template_analysis(headline)
             
     except Exception as e:
         print(f"❌ Error generating AI analysis: {e}")
-        return None
+        return generate_smart_template_analysis(headline)
 
 def format_bloomberg_time(email_date_str):
     """Convert email date string to Bloomberg format like: 08/09/25 14:32:00 UTC+7:00"""
