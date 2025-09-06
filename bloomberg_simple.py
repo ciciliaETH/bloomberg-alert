@@ -501,14 +501,35 @@ def generate_ai_analysis(headline):
         if GEMINI_API_KEY and GEMINI_API_KEY != 'YOUR_GEMINI_KEY':
             genai.configure(api_key=GEMINI_API_KEY)
             
-            # Try newer API first, fallback to older API
-            try:
-                model = genai.GenerativeModel('gemini-1.5-flash')
+            # List of models to try (from newest to oldest)
+            models_to_try = [
+                'gemini-1.5-flash',
+                'gemini-1.5-pro',
+                'gemini-pro',
+                'gemini-1.0-pro'
+            ]
+            
+            model = None
+            for model_name in models_to_try:
+                try:
+                    print(f"🔄 Trying model: {model_name}")
+                    model = genai.GenerativeModel(model_name)
+                    break
+                except Exception as e:
+                    print(f"❌ Model {model_name} failed: {e}")
+                    continue
+            
+            # If no GenerativeModel works, try legacy API
+            if not model:
+                print("🔄 Trying legacy generate_text API...")
+                try:
+                    model = genai
+                    method = "generate_text"
+                except Exception as e:
+                    print(f"❌ Legacy API also failed: {e}")
+                    return None
+            else:
                 method = "GenerativeModel"
-            except AttributeError:
-                # Fallback for older versions
-                model = genai
-                method = "generate_text"
             
             prompt = f"""Tolong bikin penjelasan berita dengan gaya Bloomberg/Reuters, panjang 2 paragraf. Gunakan headline berikut: {headline}
 
@@ -528,6 +549,7 @@ Gunakan bahasa formal, padat, tapi tetap enak dibaca. Tulis dalam bahasa Indones
                 response = model.generate_text(prompt=full_prompt)
                 analysis = response.result.strip() if hasattr(response, 'result') else str(response).strip()
             
+            print(f"✅ AI analysis generated successfully with {method}")
             return analysis
         else:
             print("❌ Gemini API key not configured")
