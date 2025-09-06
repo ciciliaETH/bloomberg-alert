@@ -501,36 +501,6 @@ def generate_ai_analysis(headline):
         if GEMINI_API_KEY and GEMINI_API_KEY != 'YOUR_GEMINI_KEY':
             genai.configure(api_key=GEMINI_API_KEY)
             
-            # List of models to try (from newest to oldest)
-            models_to_try = [
-                'gemini-1.5-flash',
-                'gemini-1.5-pro',
-                'gemini-pro',
-                'gemini-1.0-pro'
-            ]
-            
-            model = None
-            for model_name in models_to_try:
-                try:
-                    print(f"🔄 Trying model: {model_name}")
-                    model = genai.GenerativeModel(model_name)
-                    break
-                except Exception as e:
-                    print(f"❌ Model {model_name} failed: {e}")
-                    continue
-            
-            # If no GenerativeModel works, try legacy API
-            if not model:
-                print("🔄 Trying legacy generate_text API...")
-                try:
-                    model = genai
-                    method = "generate_text"
-                except Exception as e:
-                    print(f"❌ Legacy API also failed: {e}")
-                    return None
-            else:
-                method = "GenerativeModel"
-            
             prompt = f"""Tolong bikin penjelasan berita dengan gaya Bloomberg/Reuters, panjang 2 paragraf. Gunakan headline berikut: {headline}
 
 Paragraf pertama: jelaskan isi utama berita (siapa, apa, kapan, data/indikator utama kalau ada).
@@ -538,19 +508,67 @@ Paragraf kedua: jelaskan konteks, dampak, atau implikasi dari berita tersebut (m
 
 Gunakan bahasa formal, padat, tapi tetap enak dibaca. Tulis dalam bahasa Indonesia."""
 
-            system_prompt = "Kamu adalah jurnalis ekonomi/finansial yang ahli menulis analisis berita Bloomberg/Reuters dengan gaya profesional."
-            full_prompt = f"{system_prompt}\n\n{prompt}"
-            
-            if method == "GenerativeModel":
-                response = model.generate_content(full_prompt)
+            # Try newer API first (GenerativeModel)
+            try:
+                print("🔄 Trying GenerativeModel API...")
+                model = genai.GenerativeModel('gemini-pro')
+                response = model.generate_content(prompt)
                 analysis = response.text.strip()
-            else:
-                # Fallback method for older versions
-                response = model.generate_text(prompt=full_prompt)
-                analysis = response.result.strip() if hasattr(response, 'result') else str(response).strip()
+                print("✅ AI analysis generated with GenerativeModel")
+                return analysis
+            except Exception as e:
+                print(f"❌ GenerativeModel failed: {e}")
             
-            print(f"✅ AI analysis generated successfully with {method}")
-            return analysis
+            # Try older generate_text API
+            try:
+                print("🔄 Trying generate_text API...")
+                response = genai.generate_text(prompt=prompt)
+                if hasattr(response, 'result'):
+                    analysis = response.result.strip()
+                elif hasattr(response, 'text'):
+                    analysis = response.text.strip()
+                else:
+                    analysis = str(response).strip()
+                print("✅ AI analysis generated with generate_text")
+                return analysis
+            except Exception as e:
+                print(f"❌ generate_text failed: {e}")
+            
+            # Try simple text generation (fallback for very old versions)
+            try:
+                print("🔄 Trying simple text generation...")
+                # For very old versions, try direct API call
+                headers = {'Content-Type': 'application/json'}
+                data = {
+                    'prompt': {'text': prompt},
+                    'temperature': 0.7,
+                    'candidate_count': 1
+                }
+                
+                # This is a fallback - might not work but worth trying
+                response = requests.post(
+                    f'https://generativelanguage.googleapis.com/v1beta/models/text-bison-001:generateText?key={GEMINI_API_KEY}',
+                    headers=headers,
+                    json=data,
+                    timeout=30
+                )
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if 'candidates' in result and result['candidates']:
+                        analysis = result['candidates'][0].get('output', '').strip()
+                        if analysis:
+                            print("✅ AI analysis generated with direct API")
+                            return analysis
+                
+                print(f"❌ Direct API failed: {response.status_code}")
+            except Exception as e:
+                print(f"❌ Direct API exception: {e}")
+            
+            # If all methods fail, return a simple template
+            print("⚠️ All AI methods failed, using template")
+            return f"Berdasarkan headline '{headline}', ini merupakan perkembangan penting dalam sektor keuangan yang perlu diperhatikan. Dampak dari berita ini kemungkinan akan mempengaruhi pasar dan kebijakan terkait di masa mendatang."
+        
         else:
             print("❌ Gemini API key not configured")
             return None
