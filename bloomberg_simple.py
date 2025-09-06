@@ -488,7 +488,15 @@ def generate_ai_analysis(headline):
         # Configure Gemini API
         if GEMINI_API_KEY and GEMINI_API_KEY != 'YOUR_GEMINI_KEY':
             genai.configure(api_key=GEMINI_API_KEY)
-            model = genai.GenerativeModel('gemini-1.5-flash')
+            
+            # Try newer API first, fallback to older API
+            try:
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                method = "GenerativeModel"
+            except AttributeError:
+                # Fallback for older versions
+                model = genai
+                method = "generate_text"
             
             prompt = f"""Tolong bikin penjelasan berita dengan gaya Bloomberg/Reuters, panjang 2 paragraf. Gunakan headline berikut: {headline}
 
@@ -500,8 +508,13 @@ Gunakan bahasa formal, padat, tapi tetap enak dibaca. Tulis dalam bahasa Indones
             system_prompt = "Kamu adalah jurnalis ekonomi/finansial yang ahli menulis analisis berita Bloomberg/Reuters dengan gaya profesional."
             full_prompt = f"{system_prompt}\n\n{prompt}"
             
-            response = model.generate_content(full_prompt)
-            analysis = response.text.strip()
+            if method == "GenerativeModel":
+                response = model.generate_content(full_prompt)
+                analysis = response.text.strip()
+            else:
+                # Fallback method for older versions
+                response = model.generate_text(prompt=full_prompt)
+                analysis = response.result.strip() if hasattr(response, 'result') else str(response).strip()
             
             return analysis
         else:
